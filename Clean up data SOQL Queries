@@ -1,0 +1,129 @@
+//Identifying Unused Permission Set Groups
+SELECT Id, Name, CreatedBy.Name, Description
+FROM PermissionSetGroup
+WHERE Id NOT IN (SELECT PermissionSetGroupId FROM PermissionSetAssignment)
+  AND Id NOT IN (SELECT ParentId FROM PermissionSetGroupComponent)
+
+
+//Identifying Unused Permission Sets
+SELECT Id, Name, CreatedBy.Name, Description
+FROM PermissionSet
+WHERE IsCustom = TRUE
+  AND Id NOT IN (SELECT PermissionSetId FROM PermissionSetAssignment)
+  AND Id NOT IN (SELECT PermissionSetId FROM PermissionSetGroupComponent)
+
+
+// Identifying Unused Roles
+SELECT Id, Name, DeveloperName
+FROM UserRole
+WHERE Id NOT IN (SELECT UserRoleId FROM User WHERE IsActive = TRUE)
+
+
+//Identifying Unused Profiles
+SELECT Id, Name
+FROM Profile
+WHERE Id NOT IN (SELECT ProfileId FROM User WHERE IsActive = TRUE)
+
+
+//Identifying Roles with Only Inactive Users
+SELECT Id, Name, DeveloperName
+FROM UserRole
+WHERE Id IN (
+  SELECT UserRoleId
+  FROM User
+  WHERE IsActive = FALSE
+)
+AND Id NOT IN (
+  SELECT UserRoleId
+  FROM User
+  WHERE IsActive = TRUE
+)
+
+
+//Identifying Public Groups with No Members
+SELECT Id, Name, DeveloperName
+FROM Group
+WHERE Type = 'Regular'
+  AND Id NOT IN (SELECT GroupId FROM GroupMember)
+
+
+//Identifying Queues with No Members
+SELECT Id, Name
+FROM Group
+WHERE Type = 'Queue'
+  AND Id NOT IN (SELECT GroupId FROM GroupMember)
+
+
+//Identifying Permission Sets with ‘Manage Users’ Permission
+SELECT Id, Name, Label, IsOwnedByProfile
+FROM PermissionSet
+WHERE PermissionsManageUsers = TRUE and IsCustom = true
+
+
+//Identifying Profiles with ‘Manage Users’ Permission
+SELECT Id, Name
+FROM Profile 
+WHERE PermissionsManageUsers = TRUE 
+
+
+// Identifying Profiles and Permission sets with Excessive Administrative Permissions
+SELECT Id, Name, Label, IsOwnedByProfile,
+  PermissionsModifyAllData,
+  PermissionsManageUsers,
+  PermissionsAuthorApex,
+  PermissionsViewAllData,
+  PermissionsInstallPackaging
+FROM PermissionSet
+WHERE IsOwnedByProfile = TRUE
+  AND (
+    PermissionsModifyAllData = TRUE OR
+    PermissionsManageUsers = TRUE OR
+    PermissionsAuthorApex = TRUE OR
+    PermissionsViewAllData = TRUE OR
+    PermissionsInstallPackaging = TRUE
+  )
+
+
+
+//Identifying Apex Classes with Outdated API Versions
+SELECT Id, Name, ApiVersion
+FROM ApexClass
+WHERE ApiVersion < 50.0 and NamespacePrefix = null 
+ORDER BY ApiVersion ASC, Name ASC
+
+
+
+//Identifying Custom Permissions Not Assigned to Any Profile or Permission Set
+SELECT Id, DeveloperName, MasterLabel
+FROM CustomPermission
+WHERE Id NOT IN (
+  SELECT SetupEntityId
+  FROM SetupEntityAccess
+  WHERE SetupEntityType = 'CustomPermission'
+)
+
+
+
+//Identifying Objects That Don’t Have Search Enabled
+SELECT QualifiedApiName, Label, IsSearchable
+FROM EntityDefinition
+WHERE IsCustomizable = TRUE
+  AND IsCustomSetting = FALSE
+  AND IsSearchable = FALSE
+  AND IsDeprecatedAndHidden = FALSE
+ORDER BY QualifiedApiName
+
+
+
+//Identifying Unused Reports
+SELECT Id, Name, DeveloperName, LastReferencedDate
+FROM Report
+WHERE LastReferencedDate = NULL
+  OR LastReferencedDate < LAST_N_YEARS:2
+
+
+// Identifying Unused Email Templates
+SELECT Id, Name, DeveloperName, LastUsedDate
+FROM EmailTemplate
+WHERE LastUsedDate = NULL
+  OR LastUsedDate < LAST_N_YEARS:2
